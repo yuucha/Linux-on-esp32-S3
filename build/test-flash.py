@@ -55,7 +55,7 @@ if 'write_flash' in sys.argv and os.environ.get('FAIL_WRITE') == '1':
         self.env.pop('TARGET', None)
 
     def use_8m(self):
-        # 8 MB image set with a 256 KiB persistent /home partition
+        # 8 MB image set with a 320 KiB persistent /home partition
         self.env['TARGET'] = 'esp32s3_8m'
         table = b''
         for row in csv.reader((self.root / TABLE_8M).read_text().splitlines()):
@@ -64,7 +64,7 @@ if 'write_flash' in sys.argv and os.environ.get('FAIL_WRITE') == '1':
                                      int(row[4], 0), row[0].strip().encode(), 0)
         (self.images / 'partition-table.bin').write_bytes(table + b'\xff' * 32)
         with (self.images / 'home.jffs2').open('wb') as stream:
-            stream.truncate(0x40000)
+            stream.truncate(0x50000)
         with (self.images / 'linux-esp32s3-native-full.bin').open('r+b') as stream:
             stream.truncate(0x800000)
 
