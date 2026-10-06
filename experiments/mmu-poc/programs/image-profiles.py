@@ -67,7 +67,7 @@ def pack(selected, output):
     if not base.is_file():
         raise SystemExit('Missing baseline image. Run make-image.sh/compact-image.sh first; see README.')
     sources = [OUT / PACKAGES[n]['source'] for n in selected]
-    sources += [PROGRAMS / name for name in ('busybox-with-netcat', 'process-test', 'programbench', 'jobq', 'dtach')]
+    sources += [PROGRAMS / name for name in ('busybox-with-netcat', 'process-test', 'jobq', 'dtach')]
     missing = [str(p) for p in sources if not p.is_file()]
     if missing:
         raise SystemExit('Missing compiled artifacts (nothing flashed):\n' + '\n'.join(missing))
@@ -92,7 +92,7 @@ def pack(selected, output):
             path = tree / 'bin' / name
             remove(path)
             path.symlink_to('busybox')
-        for name in ('process-test', 'programbench', 'jobq'):
+        for name in ('process-test', 'jobq'):
             install(PROGRAMS / name, tree / 'usr/bin' / name)
         install(HERE / 'user-shell', tree / 'usr/bin/user-shell')
         install(HERE / 'set-user-shell.sh', tree / 'usr/sbin/set-user-shell')
