@@ -216,33 +216,6 @@ jobs:
           N8_PROFILE: ${{ inputs.n8_profile }}
         run: JOBS=$(nproc) bash build/reproduce.sh
 
-      - name: Generate Buildroot size analysis
-        if: always()
-        continue-on-error: true
-        run: |
-          echo "=== Buildroot size analysis ==="
-
-          logdir=$(find build-output -type d -name logs | head -1)
-          mkdir -p "${logdir:-build-output/logs}/size-analysis"
-          out="${logdir:-build-output/logs}/size-analysis"
-
-          find build-output -type d -name 'build-buildroot-*' -print
-
-          while IFS= read -r br; do
-            echo "Analyzing: $br"
-
-            if [ -f "$br/Makefile" ]; then
-              make -C "$br" graph-size || true
-            fi
-
-            if [ -d "$br/graphs" ]; then
-              cp -a "$br/graphs/." "$out/"
-            fi
-          done < <(find build-output -type d -name 'build-buildroot-*')
-
-          echo "=== Size analysis files ==="
-          find "$out" -type f -print || true
-
       - name: Report the disk left
         if: always()
         run: df -h /
@@ -286,15 +259,6 @@ jobs:
         with:
           name: logs-${{ matrix.run }}
           path: build-output/reproduce.*/logs/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Buildroot size analysis
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: size-analysis-${{ matrix.run }}
-          path: build-output/reproduce.*/logs/size-analysis/
           if-no-files-found: warn
           retention-days: 14
 

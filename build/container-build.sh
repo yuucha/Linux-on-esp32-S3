@@ -162,10 +162,29 @@ rootfs_base() {
     "$base/buildroot/utils/config" --file "$br/.config" --set-str WGET 'wget -nd -t 3 --timeout=20'
     grep -qx "sha256  $LINUX_TARBALL_SHA256  linux-$LINUX_VERSION.tar.xz" "$repo/new-files/board/espressif/esp32s3/package-patches/linux/linux.hash"
     grep -qx "BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=\"$LINUX_VERSION\"" "$br/.config"
-    make -C "$base/buildroot" O="$br" BR2_JLEVEL="$JOBS" \
+        make -C "$base/buildroot" O="$br" BR2_JLEVEL="$JOBS" \
         "${BR2_DL_ARGS[@]}" \
         "${BR2_CCACHE_ARGS[@]}"
+
     test -s "$br/images/rootfs.cramfs"
+
+    # Generate Buildroot size analysis for CI diagnostics.
+    # Failure here must not fail the firmware build.
+    echo "Generating Buildroot size analysis..."
+
+    size_analysis_dir="$work/logs/size-analysis"
+    mkdir -p "$size_analysis_dir"
+
+    if make -C "$base/buildroot" O="$br" graph-size; then
+        if [ -d "$br/graphs" ]; then
+            cp -a "$br/graphs/." "$size_analysis_dir/"
+            echo "Buildroot size analysis saved to $size_analysis_dir"
+        else
+            echo "warning: graph-size completed but $br/graphs was not found"
+        fi
+    else
+        echo "warning: Buildroot graph-size failed"
+    fi
 }
 
 firmware() {
