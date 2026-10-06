@@ -220,41 +220,28 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          for br in build-output/reproduce.*/build-buildroot-*; do
-            [ -d "$br" ] || continue
+          echo "=== Buildroot size analysis ==="
 
-            echo "=== Generating size analysis for $br ==="
+          logdir=$(find build-output -type d -name logs | head -1)
+          mkdir -p "${logdir:-build-output/logs}/size-analysis"
+          out="${logdir:-build-output/logs}/size-analysis"
 
-            make -C buildroot \
-              O="$GITHUB_WORKSPACE/$br" \
-              graph-size || true
+          find build-output -type d -name 'build-buildroot-*' -print
 
-            logdir=$(ls -dt build-output/reproduce.*/logs | head -1)
-            mkdir -p "$logdir/size-analysis"
+          while IFS= read -r br; do
+            echo "Analyzing: $br"
+
+            if [ -f "$br/Makefile" ]; then
+              make -C "$br" graph-size || true
+            fi
 
             if [ -d "$br/graphs" ]; then
-              cp -a "$br/graphs/." "$logdir/size-analysis/"
+              cp -a "$br/graphs/." "$out/"
             fi
-          done
+          done < <(find build-output -type d -name 'build-buildroot-*')
 
-      - name: Generate Buildroot size analysis
-        if: always()
-        run: |
-          set -e
-
-          echo "=== Buildroot output directories ==="
-          find build-output -maxdepth 2 -type d -name 'build-buildroot-*' -print
-
-          for br in build-output/reproduce.*/build-buildroot-*; do
-            [ -d "$br" ] || continue
-
-            echo "=== Generating size analysis for $br ==="
-
-            make -C buildroot O="$GITHUB_WORKSPACE/$br" graph-size
-
-            echo "=== Generated graphs ==="
-            find "$br/graphs" -maxdepth 1 -type f -print || true
-          done
+          echo "=== Size analysis files ==="
+          find "$out" -type f -print || true
 
       - name: Report the disk left
         if: always()
