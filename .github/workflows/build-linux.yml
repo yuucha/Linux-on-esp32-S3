@@ -3,6 +3,15 @@ name: Build Linux ESP32-S3 (legacy base system)
 on:
   workflow_dispatch:
     inputs:
+      cache_mode:
+        description: Build cache mode
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - clean
+
       reuse_build_from_run:
         description: >-
           Run ID whose esp32-linux-raw-build artifact to package, instead of
@@ -54,6 +63,72 @@ jobs:
           echo "Disk after cleanup:"
           df -h
 
+      # ------------------------------------------------------------------
+      # Persistent build cache
+      #
+      # container-build.sh currently knows how to use:
+      #
+      #   /cache/toolchain
+      #   /cache/buildroot-dl
+      #   /cache/ccache
+      #
+      # In dev mode these directories are restored/saved by actions/cache.
+      # In clean mode a fresh temporary cache directory is still mounted so
+      # that container-build.sh follows the normal non-persistent build path.
+      # ------------------------------------------------------------------
+
+      - name: Prepare build cache directories
+        run: |
+          rm -rf "$GITHUB_WORKSPACE/.build-cache"
+
+          mkdir -p "$GITHUB_WORKSPACE/.build-cache/toolchain"
+          mkdir -p "$GITHUB_WORKSPACE/.build-cache/buildroot-dl"
+          mkdir -p "$GITHUB_WORKSPACE/.build-cache/ccache"
+
+          echo "Cache mode: ${{ inputs.cache_mode }}"
+
+      - name: Restore build cache
+        if: inputs.cache_mode == 'dev'
+        id: build-cache
+        uses: actions/cache@v4
+        with:
+          path: .build-cache
+          key: >-
+            esp32-linux-${{ runner.os }}-${{
+              hashFiles(
+                'build/sources.lock',
+                'build/pin-toolchain.py',
+                'new-files/toplevel/Dockerfile'
+              )
+            }}
+          restore-keys: |
+            esp32-linux-${{ runner.os }}-
+
+      - name: Show restored cache
+        if: inputs.cache_mode == 'dev'
+        run: |
+          echo "Cache hit: ${{ steps.build-cache.outputs.cache-hit }}"
+          echo
+          echo "Cache directories:"
+          du -sh .build-cache/* 2>/dev/null || true
+
+          echo
+          echo "Cached toolchains:"
+          find .build-cache/toolchain \
+            -maxdepth 3 \
+            -type f \
+            -name 'toolchain.tar' \
+            -print 2>/dev/null || true
+
+          echo
+          echo "Buildroot downloads:"
+          find .build-cache/buildroot-dl \
+            -type f 2>/dev/null | wc -l || true
+
+          echo
+          echo "ccache:"
+          du -sh .build-cache/ccache 2>/dev/null || true
+
       - name: Build Docker image
         run: |
           docker build \
@@ -65,7 +140,32 @@ jobs:
         run: |
           docker create \
             --name esp32-linux-builder \
+            --mount \
+              type=bind,source="$GITHUB_WORKSPACE/.build-cache",target=/cache \
             linux-on-esp32s3:ci
+
+      - name: Verify cache mount
+        run: |
+          docker start esp32-linux-builder
+
+          docker exec esp32-linux-builder sh -c '
+            echo "=== /cache ==="
+            ls -lah /cache
+
+            echo
+            echo "=== /cache/toolchain ==="
+            ls -lah /cache/toolchain || true
+
+            echo
+            echo "=== /cache/buildroot-dl ==="
+            ls -lah /cache/buildroot-dl | head || true
+
+            echo
+            echo "=== /cache/ccache ==="
+            ls -lah /cache/ccache | head || true
+          ' || true
+
+          docker stop esp32-linux-builder
 
       - name: Build Linux and firmware
         run: |
@@ -95,12 +195,20 @@ jobs:
           docker system df || true
 
           echo
+          echo "=== Build cache usage ==="
+          du -sh "$GITHUB_WORKSPACE/.build-cache"/* 2>/dev/null || true
+
+          echo
+          echo "=== Cached Xtensa toolchains ==="
+          find "$GITHUB_WORKSPACE/.build-cache/toolchain" \
+            -maxdepth 3 \
+            -type f \
+            -name 'toolchain.tar' \
+            -ls 2>/dev/null || true
+
+          echo
           echo "=== Kernel / OOM messages ==="
           sudo dmesg | tail -100 || true
-
-      - name: Copy build output from container
-        run: |
-          mkdir -p build-output
 
       - name: Copy build output from container
         run: |
@@ -123,6 +231,20 @@ jobs:
           retention-days: 7
           compression-level: 1
           include-hidden-files: true
+
+      - name: Show final cache state
+        if: always() && inputs.cache_mode == 'dev'
+        run: |
+          echo "=== Final cache state ==="
+          du -sh "$GITHUB_WORKSPACE/.build-cache"/* 2>/dev/null || true
+
+          echo
+          echo "=== Toolchain cache ==="
+          find "$GITHUB_WORKSPACE/.build-cache/toolchain" \
+            -maxdepth 3 \
+            -type f \
+            -name 'toolchain.tar' \
+            -ls 2>/dev/null || true
 
       - name: Remove build container
         if: always()
@@ -194,7 +316,9 @@ jobs:
         run: |
           for d in build-output/build-buildroot-*/host; do
             [ -d "$d" ] || continue
-            find "$d/bin" "$d/sbin" -type f -exec chmod +x {} + 2>/dev/null || true
+            find "$d/bin" "$d/sbin" \
+              -type f \
+              -exec chmod +x {} + 2>/dev/null || true
           done
 
           ls -l build-output/build-buildroot-*/host/sbin/mkfs.jffs2 || \
@@ -203,7 +327,6 @@ jobs:
       - name: Set aside the committed images
         run: |
           cp -a images images-committed
-
           ls -la images-committed
 
       - name: Package flashable image
@@ -231,10 +354,14 @@ jobs:
         run: |
           exact="bootloader.bin partition-table.bin"
 
-          emit() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          emit() {
+            echo "$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+          }
 
           names() {
-            ls "$1" 2>/dev/null | grep -vE '^SHA256SUMS\.txt$|\.example$' || true
+            ls "$1" 2>/dev/null \
+              | grep -vE '^SHA256SUMS\.txt$|\.example$' || true
           }
 
           emit "## Built here vs committed to the repository"
@@ -243,6 +370,7 @@ jobs:
           emit "|---|---:|---:|---|"
 
           mismatch=""
+
           for n in $( { names images-committed; names images; } | sort -u ); do
             new="images/$n"
             old="images-committed/$n"
@@ -251,6 +379,7 @@ jobs:
               emit "| \`$n\` | $(stat -c%s "$old") | — | not produced by this build |"
               continue
             fi
+
             if [ ! -f "$old" ]; then
               emit "| \`$n\` | — | $(stat -c%s "$new") | not in the repository |"
               continue
@@ -280,6 +409,7 @@ jobs:
           done
 
           emit ""
+
           if [ -n "$mismatch" ]; then
             emit "> Reproducibility: these must be byte-identical and are not:**$mismatch**"
             emit "> Everything else differing is expected — see DEVELOPMENT.md."
