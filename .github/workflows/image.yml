@@ -30,6 +30,15 @@ on:
           - server
           - client
 
+      cache:
+        description: Build cache mode
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - clean
+
 permissions:
   contents: read
 
@@ -186,6 +195,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         run: [1, 2]
 
@@ -202,6 +212,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Restore persistent development cache
+        if: inputs.cache == 'dev'
+        id: build-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/linux-on-esp32-s3
+          key: esp32-linux-dev-${{ runner.os }}-${{ hashFiles('build/sources.lock', 'build/pin-toolchain.py', 'build/reproduce.sh', 'build/container-build.sh', 'new-files/toplevel/Dockerfile') }}
+          restore-keys: |
+            esp32-linux-dev-${{ runner.os }}-
+
+      - name: Show cache status
+        if: inputs.cache == 'dev'
+        run: |
+          echo "Cache mode: dev"
+          echo "Exact cache hit: ${{ steps.build-cache.outputs.cache-hit }}"
+          echo "Cache root: $HOME/.cache/linux-on-esp32-s3"
+          if [ -d "$HOME/.cache/linux-on-esp32-s3" ]; then
+            du -sh "$HOME/.cache/linux-on-esp32-s3" || true
+            find "$HOME/.cache/linux-on-esp32-s3" -maxdepth 3 -type f -name 'toolchain.tar' -print || true
+          else
+            echo "No previous cache was restored; this run will populate it."
+          fi
+
       - name: Give git an identity
         run: |
           git config user.name "${{ github.actor }}"
@@ -214,7 +247,25 @@ jobs:
         env:
           TARGET: ${{ inputs.target }}
           N8_PROFILE: ${{ inputs.n8_profile }}
-        run: JOBS=$(nproc) bash build/reproduce.sh
+          CACHE: ${{ inputs.cache }}
+        run: |
+          echo "TARGET=$TARGET"
+          echo "N8_PROFILE=$N8_PROFILE"
+          echo "CACHE=$CACHE"
+          JOBS=$(nproc) bash build/reproduce.sh
+
+      - name: Report development cache
+        if: always() && inputs.cache == 'dev'
+        run: |
+          echo "=== Development cache ==="
+          du -sh "$HOME/.cache/linux-on-esp32-s3" 2>/dev/null || true
+          echo
+          echo "=== Cached toolchains ==="
+          find "$HOME/.cache/linux-on-esp32-s3/toolchain" \
+            -maxdepth 3 -type f -name 'toolchain.tar' -ls 2>/dev/null || true
+          echo
+          echo "=== Cache subdirectories ==="
+          du -sh "$HOME/.cache/linux-on-esp32-s3"/* 2>/dev/null || true
 
       - name: Report the disk left
         if: always()
