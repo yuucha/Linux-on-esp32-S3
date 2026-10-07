@@ -39,6 +39,23 @@ LOG_CAP_BYTES=${LOG_CAP_BYTES:-50000000}
 driver="$work/refs/esp32-linux-build"
 base="$driver/build"
 br="$base/build-buildroot-$PROFILE"
+driver="$work/refs/esp32-linux-build"
+base="$driver/build"
+br="$base/build-buildroot-$PROFILE"
+
+dump_linux_patch_debug() {
+    local dts="$br/build/linux-7.2.4/arch/xtensa/boot/dts/esp32s3-devkit-c1.dts"
+
+    mkdir -p "$work/artifacts/patch-debug"
+
+    [ -f "$dts" ] && \
+        cp "$dts" "$work/artifacts/patch-debug/esp32s3-devkit-c1.dts"
+
+    [ -f "$dts.rej" ] && \
+        cp "$dts.rej" "$work/artifacts/patch-debug/esp32s3-devkit-c1.dts.rej"
+}
+
+trap dump_linux_patch_debug ERR
 BR2_DL_ARGS=()
 if [ -d /cache/buildroot-dl ]; then
     BR2_DL_ARGS=(BR2_DL_DIR=/cache/buildroot-dl)
