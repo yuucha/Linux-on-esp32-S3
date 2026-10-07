@@ -152,6 +152,55 @@ rootfs_base() {
     cd "$driver"
     ./apply-local-changes.sh buildroot
     make -C "$base/buildroot" O="$br" "${PROFILE}_defconfig"
+        case "$N8_PROFILE" in
+        server)
+            echo "N8 userspace profile: server (Dropbear SSH/SCP)"
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --set-str PACKAGE_BUSYBOX_CONFIG \
+                "board/espressif/esp32s3/busybox-8m-server.config"
+
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_DROPBEAR
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --set-str PACKAGE_DROPBEAR_LOCALOPTIONS_FILE \
+                "board/espressif/esp32s3/dropbear-localoptions.h"
+
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_MBEDTLS
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL_CURL
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL_MBEDTLS
+            ;;
+
+        client)
+            echo "N8 userspace profile: client (curl + HTTP/HTTPS)"
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --set-str PACKAGE_BUSYBOX_CONFIG \
+                "board/espressif/esp32s3/busybox-8m-client.config"
+
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_DROPBEAR
+
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_MBEDTLS
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_LIBCURL
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_LIBCURL_CURL
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_LIBCURL_MBEDTLS
+
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL_PROXY_SUPPORT
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL_COOKIES_SUPPORT
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --disable PACKAGE_LIBCURL_EXTRA_PROTOCOLS_FEATURES
+            ;;
+    esac
     if [ -d /cache/ccache ]; then
         "$base/buildroot/utils/config" --file "$br/.config" --enable CCACHE
     fi
