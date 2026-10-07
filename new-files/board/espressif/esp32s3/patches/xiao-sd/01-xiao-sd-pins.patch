@@ -8,10 +8,26 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		compatible = "i2c-gpio";
-@@ -32,6 +33,26 @@
+@@ -34,15 +35,35 @@
  	};
- };
- 
+ 	spi2_pins: spi2_pins {
+ 		pinctrl-single,pins = <
+-			PIN(10) (FUN_SEL(4) | FUN_DRV_20MA)	/* CS0 */
+-			PIN(11) (FUN_SEL(4) | FUN_DRV_40MA)	/* MOSI */
+-			PIN(12) (FUN_SEL(4) | FUN_DRV_40MA)	/* SCK */
+-			PIN(13) FUN0_20MA_IE_WPU>;		/* MISO */
++			PIN(21) (FUN_SEL(0) | FUN_DRV_20MA)	/* CS0 */
++			PIN(9) (FUN_SEL(0) | FUN_DRV_40MA)	/* MOSI */
++			PIN(7) (FUN_SEL(0) | FUN_DRV_40MA)	/* SCK */
++			PIN(8) FUN0_20MA_IE_WPU>;		/* MISO */
+ 	};
+ 	uart0_pins: uart0_pins {
+ 		pinctrl-single,pins = <
+ 			PIN(43) FUN0_20MA			/* U0TXD */
+ 			PIN(44) FUN0_20MA_IE_WPU>;		/* U0RXD */
++	};
++};
++
 +&gpio_in_mux {
 +	status = "ok";
 +
@@ -29,28 +45,10 @@
 +			GPIO_FUNC_OUT_SEL(21) 110 /* SPI2 CS0: GPIO21 */
 +			GPIO_FUNC_OUT_SEL(9) 103  /* SPI2 MOSI: GPIO9 */
 +			GPIO_FUNC_OUT_SEL(7) 101>; /* SPI2 SCK: GPIO7 */
-+	};
-+};
-+
- &rtc_iomux {
- 	status = "ok";
- 	usb_rtc_pins: usb_rtc_pins {
-@@ -62,10 +82,10 @@
  	};
- 	spi2_pins: spi2_pins {
- 		pinctrl-single,pins = <
--			PIN(10) (FUN_SEL(4) | FUN_DRV_20MA)	/* CS0 */
--			PIN(11) (FUN_SEL(4) | FUN_DRV_40MA)	/* MOSI */
--			PIN(12) (FUN_SEL(4) | FUN_DRV_40MA)	/* SCK */
--			PIN(13) (FUN_SEL(4) | FUN0_20MA_IE_WPU)>;/* MISO */
-+			PIN(21) (FUN_SEL(0) | FUN_DRV_20MA)	/* CS0 */
-+			PIN(9) (FUN_SEL(0) | FUN_DRV_40MA)	/* MOSI */
-+			PIN(7) (FUN_SEL(0) | FUN_DRV_40MA)	/* SCK */
-+			PIN(8) FUN0_20MA_IE_WPU>;		/* MISO */
- 	};
- 	uart0_pins: uart0_pins {
- 		pinctrl-single,pins = <
-@@ -90,6 +110,6 @@
+ };
+ 
+@@ -57,7 +78,7 @@
  };
  
  &spi2 {
@@ -58,3 +56,4 @@
 +	pinctrl-0 = <&spi2_pins &spi2_gpio_out &spi2_gpio_in>;
  	pinctrl-names = "default";
  	status = "ok";
+ 
