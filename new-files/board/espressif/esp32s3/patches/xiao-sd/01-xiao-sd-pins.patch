@@ -8,7 +8,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		compatible = "i2c-gpio";
-@@ -32,6 +33,25 @@
+@@ -32,6 +33,26 @@
  	};
  };
 
@@ -50,7 +50,7 @@
  	};
  	uart0_pins: uart0_pins {
  		pinctrl-single,pins = <
-@@ -90,7 +110,7 @@
+@@ -90,6 +110,6 @@
  };
 
  &spi2 {
