@@ -86,12 +86,32 @@ clone_locked() {
 stage() {
     local name=$1
     shift
+
     if [[ -f "$work/stages/$name.done" ]]; then
         echo "RESUME: $name already completed in this build directory"
         return
     fi
+
     echo "START: $name $(date -u +%FT%TZ)"
-    (set -euo pipefail; "$@") 2>&1 | tee >(head -c "$LOG_CAP_BYTES" > "$work/logs/$name.log")
+
+    if ! (set -euo pipefail; "$@") \
+        2>&1 | tee >(head -c "$LOG_CAP_BYTES" > "$work/logs/$name.log"); then
+
+        if [[ "$name" == "base-rootfs" || "$name" == "build" ]]; then
+            dts="$br/build/linux-7.2.4/arch/xtensa/boot/dts/esp32s3-devkit-c1.dts"
+
+            mkdir -p "$work/logs/patch-debug"
+
+            [ -f "$dts" ] && \
+                cp "$dts" "$work/logs/patch-debug/esp32s3-devkit-c1.dts"
+
+            [ -f "$dts.rej" ] && \
+                cp "$dts.rej" "$work/logs/patch-debug/esp32s3-devkit-c1.dts.rej"
+        fi
+
+        return 1
+    fi
+
     date -u +%FT%TZ > "$work/stages/$name.done"
     echo "PASS: $name"
 }
