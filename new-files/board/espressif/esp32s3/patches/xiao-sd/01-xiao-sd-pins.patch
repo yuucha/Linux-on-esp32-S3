@@ -2,13 +2,16 @@
 +++ b/arch/xtensa/boot/dts/esp32s3-devkit-c1.dts
 @@ -12,6 +12,7 @@
  	};
-
+ 
  	i2c0 {
 +		status = "disabled";
  		#address-cells = <1>;
  		#size-cells = <0>;
  		compatible = "i2c-gpio";
-@@ -35,1 +36,21 @@
+@@ -32,6 +33,26 @@
+ 	};
+ };
+ 
 +&gpio_in_mux {
 +	status = "ok";
 +
@@ -30,6 +33,8 @@
 +};
 +
  &rtc_iomux {
+ 	status = "ok";
+ 	usb_rtc_pins: usb_rtc_pins {
 @@ -62,10 +82,10 @@
  	};
  	spi2_pins: spi2_pins {
@@ -45,6 +50,11 @@
  	};
  	uart0_pins: uart0_pins {
  		pinctrl-single,pins = <
-@@ -90,1 +110,2 @@
+@@ -90,6 +110,6 @@
+ };
+ 
  &spi2 {
+-	pinctrl-0 = <&spi2_pins>;
 +	pinctrl-0 = <&spi2_pins &spi2_gpio_out &spi2_gpio_in>;
+ 	pinctrl-names = "default";
+ 	status = "ok";
