@@ -164,7 +164,8 @@ rootfs_base() {
             "$base/buildroot/utils/config" --file "$br/.config" \
                 --set-str PACKAGE_DROPBEAR_LOCALOPTIONS_FILE \
                 "board/espressif/esp32s3/dropbear-localoptions.h"
-
+            "$base/buildroot/utils/config" --file "$br/.config" \
+                --enable PACKAGE_NCURSES
             "$base/buildroot/utils/config" --file "$br/.config" \
                 --disable PACKAGE_MBEDTLS
             "$base/buildroot/utils/config" --file "$br/.config" \
