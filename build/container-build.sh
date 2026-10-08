@@ -338,18 +338,23 @@ package() {
 package_buildroot() {
     cp -a "$work/base-images/." "$work/artifacts/"
 
+    artifact_names=(
+        bootloader.bin
+        partition-table.bin
+        network_adapter.bin
+        xipImage
+        rootfs.cramfs
+        etc.jffs2
+        linux-esp32s3-native-full.bin
+    )
+
+    if [ "$HAS_HOME" = "1" ]; then
+        artifact_names+=(home.jffs2)
+    fi
+
     (
         cd "$work/artifacts"
-        sha256sum \
-            bootloader.bin \
-            partition-table.bin \
-            network_adapter.bin \
-            xipImage \
-            rootfs.cramfs \
-            etc.jffs2 \
-            home.jffs2 \
-            linux-esp32s3-native-full.bin \
-            > SHA256SUMS
+        sha256sum "${artifact_names[@]}" > SHA256SUMS
     )
 
     cp "$repo/build/sources.lock" "$work/artifacts/sources.lock"
@@ -357,9 +362,10 @@ package_buildroot() {
     mkdir -p "$work/artifacts/configs"
     cp "$br/.config" "$work/artifacts/configs/buildroot.config"
 
-    python3 - "$work" <<'PY'
+    HAS_HOME="$HAS_HOME" python3 - "$work" <<'PY'
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -376,9 +382,11 @@ artifact_names = [
     'xipImage',
     'rootfs.cramfs',
     'etc.jffs2',
-    'home.jffs2',
     'linux-esp32s3-native-full.bin',
 ]
+
+if os.environ.get('HAS_HOME') == '1':
+    artifact_names.append('home.jffs2')
 
 checksums = {name: sha(out / name) for name in artifact_names}
 
