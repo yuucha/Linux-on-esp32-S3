@@ -283,11 +283,52 @@ firmware() {
     cd ../network_adapter
     idf.py set-target esp32s3
     cp sdkconfig.defaults.esp32s3.16m8r sdkconfig
+
+    # Apply target-specific flash size.
+    sed -i '/^CONFIG_ESPTOOLPY_FLASHSIZE_[0-9]*MB=/d' sdkconfig
+    sed -i '/^# CONFIG_ESPTOOLPY_FLASHSIZE_[0-9]*MB is not set$/d' sdkconfig
+    sed -i '/^CONFIG_ESPTOOLPY_FLASHSIZE=/d' sdkconfig
+
+    case "$FLASH_SIZE" in
+        8MB)
+            echo 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' >> sdkconfig
+            echo 'CONFIG_ESPTOOLPY_FLASHSIZE="8MB"' >> sdkconfig
+            ;;
+        16MB)
+            echo 'CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y' >> sdkconfig
+            echo 'CONFIG_ESPTOOLPY_FLASHSIZE="16MB"' >> sdkconfig
+            ;;
+        *)
+            echo "Unsupported flash size: $FLASH_SIZE" >&2
+            exit 1
+            ;;
+    esac
     sed -i "s|^CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"$PARTITION_CSV\"|" sdkconfig
     sed -i "s|^CONFIG_PARTITION_TABLE_FILENAME=.*|CONFIG_PARTITION_TABLE_FILENAME=\"$PARTITION_CSV\"|" sdkconfig
+
+    # Verify the final ESP-IDF configuration.
+    grep -Fxq "CONFIG_ESPTOOLPY_FLASHSIZE=\"$FLASH_SIZE\"" sdkconfig || {
+        echo "ERROR: incorrect ESP-IDF flash size" >&2
+        exit 1
+    }
+
+    grep -Fxq "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"$PARTITION_CSV\"" sdkconfig || {
+        echo "ERROR: incorrect partition table" >&2
+        exit 1
+    }
+
     idf.py build
     cd "$repo"
     TARGET="$TARGET" bash make-images.sh "$driver"
+
+    # Verify that the image size matches the selected target.
+    actual_bytes=$(stat -c%s images/linux-esp32s3-native-full.bin)
+
+    if [ "$actual_bytes" -ne "$FLASH_BYTES" ]; then
+        echo "ERROR: Expected $FLASH_BYTES bytes, got $actual_bytes" >&2
+        exit 1
+    fi
+
     cp -a images "$work/base-images"
 }
 
