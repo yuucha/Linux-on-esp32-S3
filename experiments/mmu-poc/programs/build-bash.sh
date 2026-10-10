@@ -24,7 +24,7 @@ bash_cv_printf_a_format=yes bash_cv_getenv_redef=no \
 ac_cv_func_fork=yes ac_cv_func_fork_works=yes ac_cv_func_vfork=no \
 ac_cv_lib_dl_dlopen=no ac_cv_func_dlopen=no ac_cv_func_dlsym=no ac_cv_func_dlclose=no \
 CC_FOR_BUILD=cc CFLAGS_FOR_BUILD='-O2 -std=gnu17 -include stdint.h' ./configure --host=xtensa-linux --build="$(sh ./support/config.guess)" \
-    --prefix=/usr --bindir=/bin --without-bash-malloc --with-curses \
+    --prefix=/usr --bindir=/bin --without-bash-malloc \
     --disable-nls --disable-rpath --disable-profiling --enable-separate-helpfiles
 make -j"${JOBS:-4}" LOCAL_LDFLAGS= bash
 make -C builtins helpdoc
