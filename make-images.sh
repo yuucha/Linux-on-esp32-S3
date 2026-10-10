@@ -58,7 +58,6 @@ eval "$(awk -F', *' '
 		if ($1 == "rootfs") printf "OFF_ROOTFS=%s SIZE_ROOTFS=%s ", $4, $5
 		if ($1 == "etc")    printf "OFF_ETC=%s SIZE_ETC=%s ",       $4, $5
 		if ($1 == "factory")printf "OFF_APP=%s SIZE_APP=%s ",       $4, $5
-		if ($1 == "home")   printf "OFF_HOME=%s SIZE_HOME=%s ",     $4, $5
 	}' "$CSV")"
 
 echo "==> collecting build outputs"
@@ -67,29 +66,6 @@ cp -v "$NA/build/network_adapter.bin"       "$OUT/network_adapter.bin"
 cp -v "$BR/etc.jffs2"                        "$OUT/etc.jffs2"
 cp -v "$BR/xipImage"                         "$OUT/xipImage"
 cp -v "$BR/rootfs.cramfs"                    "$OUT/rootfs.cramfs"
-
-MKFS=""
-if [ -f "$HOST/sbin/mkfs.jffs2" ]; then
-	[ -x "$HOST/sbin/mkfs.jffs2" ] || chmod +x "$HOST/sbin/mkfs.jffs2" 2>/dev/null || true
-	[ -x "$HOST/sbin/mkfs.jffs2" ] && MKFS="$HOST/sbin/mkfs.jffs2"
-fi
-if [ -z "$MKFS" ] && command -v mkfs.jffs2 >/dev/null 2>&1; then
-	MKFS=$(command -v mkfs.jffs2)
-fi
-
-if [ -n "$MKFS" ]; then
-	echo "==> building the factory /home"
-	EMPTY_HOME=$(mktemp -d)
-	trap 'rm -rf -- "$EMPTY_HOME"' EXIT
-	chmod 755 "$EMPTY_HOME"
-	"$MKFS" -l -e 65536 -U -f --pad=$(($SIZE_HOME)) \
-		-d "$EMPTY_HOME" -o "$OUT/home.jffs2"
-else
-	echo "==> no usable mkfs.jffs2; leaving the home partition erased"
-	echo "    (build trees copied through CI artifacts lose the executable bit;"
-	echo "     the board formats an erased home on its first write)"
-	rm -f "$OUT/home.jffs2"
-fi
 
 fits() {
 	local sz; sz=$(stat -c%s "$1")
@@ -104,9 +80,6 @@ fits "$OUT/network_adapter.bin" "$OFF_APP"    "$SIZE_APP"    network_adapter.bin
 fits "$OUT/etc.jffs2"           "$OFF_ETC"    "$SIZE_ETC"    etc.jffs2
 fits "$OUT/xipImage"            "$OFF_LINUX"  "$SIZE_LINUX"  xipImage
 fits "$OUT/rootfs.cramfs"       "$OFF_ROOTFS" "$SIZE_ROOTFS" rootfs.cramfs
-if [ -n "$MKFS" ]; then
-	fits "$OUT/home.jffs2"  "$OFF_HOME"   "$SIZE_HOME"   home.jffs2
-fi
 
 echo "==> checking for baked-in WiFi credentials"
 ETC_TEXT=$(strings "$OUT/etc.jffs2")
@@ -202,15 +175,14 @@ fi
 echo "==> merging into linux-esp32s3-native-full.bin"
 # shellcheck disable=SC2086
 $ESPTOOL --chip esp32s3 merge_bin -o "$OUT/linux-esp32s3-native-full.bin" \
-	--flash_mode dio --flash_freq 80m --flash_size 16MB \
-	--fill-flash-size 16MB \
+	--flash_mode dio --flash_freq 80m --flash_size 8MB \
+	--fill-flash-size 8MB \
 	0x0            "$OUT/bootloader.bin" \
 	0x8000         "$OUT/partition-table.bin" \
 	"$OFF_APP"     "$OUT/network_adapter.bin" \
 	"$OFF_ETC"     "$OUT/etc.jffs2" \
 	"$OFF_LINUX"   "$OUT/xipImage" \
-	"$OFF_ROOTFS"  "$OUT/rootfs.cramfs" \
-	${MKFS:+"$OFF_HOME" "$OUT/home.jffs2"} >/dev/null
+	"$OFF_ROOTFS"  "$OUT/rootfs.cramfs" >/dev/null
 
 echo
 echo "Done. images/ now holds:"
