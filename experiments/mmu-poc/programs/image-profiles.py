@@ -17,7 +17,7 @@ REPO = EXP.parent.parent
 BUILD = (REPO.parent / 'refs/esp32-linux-build/build').resolve()
 HOST = BUILD / 'build-buildroot-esp32s3_devkit_c1_16m/host'
 LIMIT = 0x780000
-PROFILES = {'all': ['bash', 'dash', 'make', 'micropython', 'socat'],
+PROFILES = {'all': ['bash', 'dash', 'socat'],
             'bash-red': ['bash', 'dash', 'make', 'socat'],
             'python-automatizacion': ['dash', 'make', 'micropython'], 'base': []}
 PACKAGES = {
