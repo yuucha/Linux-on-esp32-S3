@@ -160,9 +160,10 @@ run('esptool', '--chip', 'esp32s3', 'merge_bin', '-o', out / 'linux-esp32s3-nati
     *[arg for partition, filename in files.items() for arg in (hex(parts[partition]['offset']), out / filename)])
 full = (out / 'linux-esp32s3-native-full.bin').read_bytes()
 assert len(full) == 8 * 1024 * 1024
-for offset, filename in ((0, 'bootloader.bin'), (0x8000, 'partition-table.bin')):
-    payload = (out / filename).read_bytes()
-    assert full[offset:offset + len(payload)] == payload, filename
+# esptool rewrites flash parameters and the SHA digest in the bootloader
+# while merging, so only verify the partition table byte-for-byte here.
+payload = (out / 'partition-table.bin').read_bytes()
+assert full[0x8000:0x8000 + len(payload)] == payload, 'partition-table.bin'
 for partition, filename in files.items():
     payload = (out / filename).read_bytes()
     start = parts[partition]['offset']
