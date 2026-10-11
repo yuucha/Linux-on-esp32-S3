@@ -130,7 +130,6 @@ userspace() {
     bash "$exp/programs/build-atfork-test.sh"
     bash "$exp/programs/build-micropython.sh"
     bash "$exp/programs/fetch-shell-tools.sh"
-    bash "$exp/programs/build-bash.sh"
     bash "$exp/programs/build-socat.sh"
     bash "$exp/programs/build-netcat.sh"
     curl -fL --retry 2 "https://codeload.github.com/crigler/dtach/tar.gz/$DTACH_REV" -o "$exp/out/programs/dtach-b027c27.tar.gz"
