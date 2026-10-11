@@ -128,10 +128,6 @@ with tempfile.TemporaryDirectory(prefix='final-rootfs-', dir=work) as directory:
     assert not list((tree / 'etc/cron/crontabs').iterdir())
     run(host / 'sbin/mkfs.jffs2', '-l', '-e', '65536', '-U', '-f',
         '--pad=' + str(parts['etc']['size']), '-d', tree / 'etc', '-o', out / 'etc.jffs2')
-    factory_home = Path(directory) / 'home'
-    factory_home.mkdir(mode=0o755)
-    run(host / 'sbin/mkfs.jffs2', '-l', '-e', '65536', '-U', '-f',
-        '--pad=' + str(parts['home']['size']), '-d', factory_home, '-o', out / 'home.jffs2')
     run(host / 'bin/mkcramfs', '-X', '-q', tree, out / 'rootfs.cramfs')
     run(host / 'bin/cramfsck', out / 'rootfs.cramfs')
 
@@ -154,16 +150,16 @@ assert installed == parts, (
     '  table: %s\n  csv:   %s' % (installed, parts))
 shutil.copyfile(experiment / 'real-bins/xipImage-fork-quiet', out / 'xipImage')
 files = {'factory': 'network_adapter.bin', 'etc': 'etc.jffs2', 'linux': 'xipImage',
-         'rootfs': 'rootfs.cramfs', 'home': 'home.jffs2'}
+         'rootfs': 'rootfs.cramfs'}
 for partition, filename in files.items():
     assert (out / filename).stat().st_size <= parts[partition]['size'], (partition, filename)
 
 run('esptool', '--chip', 'esp32s3', 'merge_bin', '-o', out / 'linux-esp32s3-native-full.bin',
-    '--flash_mode', 'dio', '--flash_freq', '80m', '--flash_size', '16MB', '--fill-flash-size', '16MB',
+    '--flash_mode', 'dio', '--flash_freq', '80m', '--flash_size', '8MB', '--fill-flash-size', '8MB',
     '0x0', out / 'bootloader.bin', '0x8000', out / 'partition-table.bin',
     *[arg for partition, filename in files.items() for arg in (hex(parts[partition]['offset']), out / filename)])
 full = (out / 'linux-esp32s3-native-full.bin').read_bytes()
-assert len(full) == 16 * 1024 * 1024
+assert len(full) == 8 * 1024 * 1024
 for offset, filename in ((0, 'bootloader.bin'), (0x8000, 'partition-table.bin')):
     payload = (out / filename).read_bytes()
     assert full[offset:offset + len(payload)] == payload, filename
@@ -171,13 +167,6 @@ for partition, filename in files.items():
     payload = (out / filename).read_bytes()
     start = parts[partition]['offset']
     assert full[start:start + len(payload)] == payload
-home = full[parts['home']['offset']:parts['home']['offset'] + parts['home']['size']]
-marker = home[:12]
-assert marker[:4] == b'\x85\x19\x03\x20', 'factory /home is not a formatted jffs2'
-assert len(home) % 65536 == 0
-for start in range(0, len(home), 65536):
-    assert home[start:start + 12] == marker, hex(start)
-    assert home[start + 12:start + 65536] == b'\xff' * (65536 - 12), hex(start)
 manifest = json.loads((out / 'rootfs.json').read_text())
 manifest.update(image_bytes=(out / 'rootfs.cramfs').stat().st_size,
                 free_bytes=parts['rootfs']['size'] - (out / 'rootfs.cramfs').stat().st_size,
