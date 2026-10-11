@@ -8,16 +8,17 @@ PROFILE=esp32s3_devkit_c1_16m
 
 die() { echo "error: $*" >&2; exit 1; }
 
-SRC="${1:-}"
+SRC="${1:-${ESP32_LINUX_BUILD:-}}"
+
 if [ -z "$SRC" ]; then
-	for d in ../esp32-linux-build ./esp32-linux-build ./build-output; do
-		if [ -d "$d/build" ] || [ -d "$d/buildroot" ]; then
-			SRC="$d"
-			break
-		fi
-	done
-	[ -n "$SRC" ] || die "cannot find a build tree; pass esp32-linux-build/ or build-output/ as an argument"
+    for d in ../esp32-linux-build ./esp32-linux-build ./build-output /work/refs/esp32-linux-build; do
+        if [ -d "$d/build" ] || [ -d "$d/buildroot" ]; then
+            SRC="$d"
+            break
+        fi
+    done
 fi
+
 [ -d "$SRC" ] || die "$SRC does not exist"
 SRC=$(CDPATH= cd -- "$SRC" && pwd -P)
 if [ -d "$SRC/build" ]; then
