@@ -77,16 +77,16 @@ if [ -z "$MKFS" ] && command -v mkfs.jffs2 >/dev/null 2>&1; then
 fi
 
 if [ -n "$MKFS" ]; then
-	fits "$OUT/home.jffs2" "$OFF_HOME" "$SIZE_HOME" home.jffs2
+	echo "==> building the factory /home"
+	EMPTY_HOME=$(mktemp -d)
+	trap 'rm -rf -- "$EMPTY_HOME"' EXIT
+	chmod 755 "$EMPTY_HOME"
+	"$MKFS" -l -e 65536 -U -f --pad=$(($SIZE_HOME)) \
+		-d "$EMPTY_HOME" -o "$OUT/home.jffs2"
+else
+	echo "==> no usable mkfs.jffs2; leaving the home partition erased"
+	rm -f "$OUT/home.jffs2"
 fi
-
-echo "==> building /home JFFS2"
-EMPTY_HOME=$(mktemp -d)
-trap 'rm -rf -- "$EMPTY_HOME"' EXIT
-chmod 755 "$EMPTY_HOME"
-
-"$MKFS" -l -e 65536 -U -f --pad=$(($SIZE_HOME)) \
-    -d "$EMPTY_HOME" -o "$OUT/home.jffs2"
 
 fits() {
 	local sz; sz=$(stat -c%s "$1")
@@ -101,7 +101,10 @@ fits "$OUT/network_adapter.bin" "$OFF_APP"    "$SIZE_APP"    network_adapter.bin
 fits "$OUT/etc.jffs2"           "$OFF_ETC"    "$SIZE_ETC"    etc.jffs2
 fits "$OUT/xipImage"            "$OFF_LINUX"  "$SIZE_LINUX"  xipImage
 fits "$OUT/rootfs.cramfs"       "$OFF_ROOTFS" "$SIZE_ROOTFS" rootfs.cramfs
-fits "$OUT/home.jffs2"          "$OFF_HOME"   "$SIZE_HOME"   home.jffs2
+
+if [ -n "$MKFS" ]; then
+	fits "$OUT/home.jffs2" "$OFF_HOME" "$SIZE_HOME" home.jffs2
+fi
 
 echo "==> checking for baked-in WiFi credentials"
 ETC_TEXT=$(strings "$OUT/etc.jffs2")
