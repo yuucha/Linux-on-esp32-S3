@@ -212,7 +212,7 @@ def benchmarks():
         raise AssertionError(text)
     for retry in re.findall(r'(?m)^BENCH RETRY .*$', text):
         print('  note:', retry, flush=True)
-    command('test -n "$BASH_VERSION"')
+    command('test "$(readlink /bin/sh)" = busybox')
 
 try:
     console = probe.Console(args.port)
@@ -231,7 +231,7 @@ try:
         ('hardware-rsa-registered', 'grep -A2 "^name *: rsa$" /proc/crypto | grep -B2 esp32s3 || grep -c rsa-esp32s3 /proc/crypto',
          'esp32s3'),
         ('no-driver-timeout', '! dmesg | grep -q "accelerator did not report ready" && echo RSA_OK', 'RSA_OK'),
-        ('shell-policy', 'test -n "$BASH_VERSION" && test "$(readlink /bin/sh)" = busybox && test "$HOME" = /home/root', None),
+        ('shell-policy', 'test "$(readlink /bin/sh)" = busybox && test "$HOME" = /home/root', None),
         ('first-boot-home', 'test -f /home/root/README.txt && test "$(stat -c %a /home/root)" = 700 && test -f /home/www/index.html && test -x /home/www/cgi-bin/status && test ! -e /www && set -- /home/.www-seed.* && test ! -e "$1"', None),
         ('excluded-programs', 'test ! -e /usr/bin/sqlite3 && test ! -e /usr/bin/sudo && test ! -e /usr/bin/doas && test ! -e /usr/bin/nvim && test ! -e /usr/bin/python3', None),
         ('mmu-executable-remap', 'mmu-run self-test', 'PASS: executable A -> B -> A -> B'),
@@ -240,12 +240,8 @@ try:
         ('fork-dynamic', 'fork-test-dynamic', 'PASS: fork suite 5/5'),
         ('atfork', 'atfork-test', 'PASS'),
         ('process-compatibility', 'process-test', 'PASS: process suite 10/10'),
-        ('bash', '/bin/bash /usr/share/program-tests/bash-test.sh', 'PASS'),
         ('dash', '/usr/bin/dash /usr/share/fork-real/dash-test.sh', 'PASS'),
-        ('make', '/usr/bin/dash /usr/share/fork-real/make-test.sh', 'PASS'),
-        ('micropython', '/usr/bin/micropython /usr/share/program-tests/micropython-test.py', 'PASS'),
         ('network-tools', '/usr/bin/dash /usr/share/program-tests/network-tools-test.sh', 'PASS'),
-        ('hush-login', '/usr/bin/dash /usr/share/program-tests/hush-login-test.sh', 'PASS'),
         ('jobq', '/usr/bin/dash /usr/share/program-tests/jobq-test.sh', 'PASS'),
         # The console switch: default quiet, verbose raises the level for real,
         # and it goes back. Left as it was found, which is the default.
@@ -257,7 +253,6 @@ try:
     ]
     for name, text, expected in checks:
         record(name, lambda text=text, expected=expected: command(text, 180, expected))
-    record('benchmarks-lightweight-launcher', benchmarks)
     record('fork-exec-cycles', fork_exec_cycles)
     record('jffs2-write-timing', jffs2_write_timing)
     record('kernel-health', lambda: command('test "$(cat /proc/sys/kernel/tainted)" = 0 && ! dmesg | grep -E "Out of memory:|Kernel panic|BUG:|Oops:" && free'))

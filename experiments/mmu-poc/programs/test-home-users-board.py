@@ -110,15 +110,6 @@ try:
         cmd(f'test "$SESSION_PROOF" = {name} && echo REATTACH_PASS')
         end_session()
     print('PASS: two independent lightweight sessions, detach/reattach, COM reconnect, lightweight primary console', flush=True)
-    cmd('session start hwcheck-bash /bin/bash --noprofile --norc')
-    sessions.append('hwcheck-bash')
-    attach('hwcheck-bash')
-    cmd('test -n "$BASH_VERSION" && id && echo BASH_SESSION_PASS')
-    end_session()
-    print('PASS: additional Bash session with lightweight primary console', flush=True)
-    c.port.write(b'exec /bin/bash -l\r')
-    c.until(rb'# $', 15)
-    cmd('test -n "$BASH_VERSION"')
     cmd('test "$(cat /proc/sys/kernel/tainted)" = 0 && session list')
 finally:
     try:

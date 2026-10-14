@@ -45,9 +45,16 @@ RESET_BANNER = re.compile(rb'ESP-ROM:esp32s3')
 # so every round that logs in reads it back, with the taint flags.
 HEALTH = ('cat /proc/sys/kernel/tainted', 'dmesg')
 TAINTED = re.compile(rb'^\s*(\d+)\s*$', re.M)
-OFFSETS = {'etc.jffs2': '0xd0000', 'home.jffs2': '0xcc0000'}
+OFFSETS = {
+    'etc.jffs2': '0xd0000',
+    'home.jffs2': '0x7b0000',
+}
+
 # Kernel and firmware partitions, read back to identify what actually booted.
-IDENTITY = {'linux': ('0x140000', 0x400000), 'factory': ('0x10000', 0xc0000)}
+IDENTITY = {
+    'linux': ('0x140000', 0x260000),
+    'factory': ('0x10000', 0xc0000),
+}
 
 parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
 parser.add_argument('port')
